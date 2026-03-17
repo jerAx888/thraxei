@@ -613,7 +613,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:13
 <div class="topbar">
   <div class="topbar-left">
     <span class="topbar-logo">THRAXEI</span>
-    <span class="topbar-ca">CA: <span id="caAddr" style="color:var(--orange);cursor:pointer;" onclick="copyCA()" title="Click to copy">-----</span> <button id="caBtn" onclick="copyCA()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:0 2px;transition:color .2s;" title="Copy address">📋</button></span>
+    <span class="topbar-ca">CA: <span id="caAddr" style="color:var(--orange);cursor:pointer;" onclick="copyCA()" title="Click to copy">7hYbwYjkPf5k7Rm47paeFS318BNNK351pkMYjEFTBAGS</span> <button id="caBtn" onclick="copyCA()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:0 2px;transition:color .2s;" title="Copy address">📋</button></span>
   </div>
   <div class="topbar-right">
     <!-- Theme toggle -->
@@ -1663,7 +1663,7 @@ function toggleTheme() {
 // ─── CA COPY ──────────────────────────────────────────────────
 function copyCA() {
   // Copy ONLY the address, no "CA:" prefix
-  const ca = '-----';
+  const ca = '7hYbwYjkPf5k7Rm47paeFS318BNNK351pkMYjEFTBAGS';
   navigator.clipboard.writeText(ca).catch(()=>{});
   const btn = document.getElementById('caBtn');
   const orig = btn.innerHTML;
