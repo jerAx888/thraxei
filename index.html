@@ -561,6 +561,50 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:13
   flex-shrink:0;
 }
 @keyframes spin{to{transform:rotate(360deg);}}
+
+.clear-chat-btn{
+  background:none;
+  border:1px solid rgba(255,255,255,.1);
+  color:var(--text3);
+  font-family:var(--font);
+  font-size:10px;
+  padding:5px 12px;
+  border-radius:5px;
+  cursor:pointer;
+  letter-spacing:.5px;
+  transition:all .2s;
+  display:flex;align-items:center;gap:5px;
+  white-space:nowrap;
+}
+.clear-chat-btn:hover{border-color:var(--red,#ef4444);color:var(--red,#ef4444);}
+.clear-confirm-bar{
+  display:none;
+  align-items:center;gap:8px;
+  padding:8px 16px;
+  background:rgba(239,68,68,.08);
+  border-top:1px solid rgba(239,68,68,.2);
+  flex-shrink:0;
+  font-size:12px;
+  color:var(--text2);
+}
+.clear-confirm-bar.show{display:flex;}
+.confirm-yes{
+  background:var(--red,#ef4444);color:white;
+  border:none;border-radius:5px;
+  padding:5px 14px;font-size:11px;font-weight:700;
+  cursor:pointer;font-family:var(--font);
+  transition:opacity .2s;
+}
+.confirm-yes:hover{opacity:.85;}
+.confirm-no{
+  background:none;color:var(--text3);
+  border:1px solid var(--border);border-radius:5px;
+  padding:5px 14px;font-size:11px;font-weight:600;
+  cursor:pointer;font-family:var(--font);
+  transition:all .2s;
+}
+.confirm-no:hover{border-color:var(--text2);color:var(--text2);}
+
 </style>
 </head>
 <body>
@@ -584,12 +628,21 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:13
     <!-- X/Twitter -->
     <a href="https://x.com" target="_blank" class="topbar-icon" title="Follow on X">𝕏</a>
 
-    <!-- Discord -->
-    <div class="topbar-icon" title="Discord">💬</div>
 
-    <!-- Sign In / User -->
-    <div id="authArea">
-      <button class="btn-signin" onclick="openSignIn()" id="signInBtn" data-i18n="signin">SIGN IN</button>
+
+    <!-- Polymarket icon small + Sign In -->
+    <div style="display:flex;align-items:center;gap:8px;">
+      <a href="https://polymarket.com/" target="_blank" title="Polymarket" style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;height:30px;border-radius:6px;background:rgba(55,114,255,0.12);border:1px solid rgba(55,114,255,0.3);text-decoration:none;transition:all .2s;flex-shrink:0;" onmouseover="this.style.background='rgba(55,114,255,0.22)';this.style.borderColor='#3772FF'" onmouseout="this.style.background='rgba(55,114,255,0.12)';this.style.borderColor='rgba(55,114,255,0.3)'">
+        <svg width="13" height="13" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 8 L10 92 L90 50 Z" fill="#3772FF"/>
+          <path d="M28 32 L28 68 L72 50 Z" fill="#1a1a2e"/>
+          <path d="M10 92 L90 50 L50 92 Z" fill="#3772FF" opacity="0.55"/>
+        </svg>
+        <span style="font-size:11px;font-weight:700;color:#3772FF;letter-spacing:.5px;font-family:var(--font);">Polymarket</span>
+      </a>
+      <div id="authArea">
+        <button class="btn-signin" onclick="openSignIn()" id="signInBtn" data-i18n="signin">SIGN IN</button>
+      </div>
     </div>
   </div>
 </div>
@@ -642,6 +695,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:13
         <div class="chat-online-dot"></div>
         <div class="chat-online-text">ONLINE</div>
       </div>
+      <button class="clear-chat-btn" onclick="askClearChat()" title="Clear conversation">
+        🗑 Clear Chat
+      </button>
+    </div>
+    <!-- Confirm bar -->
+    <div class="clear-confirm-bar" id="clearConfirmBar">
+      <span>Delete all messages? This cannot be undone.</span>
+      <button class="confirm-yes" onclick="confirmClearChat()">Yes, delete</button>
+      <button class="confirm-no" onclick="cancelClearChat()">Cancel</button>
     </div>
 
     <div class="chat-messages" id="chatMessages">
@@ -1311,8 +1373,11 @@ function getFallbackArt(prompt) {
   </svg>`;
 }
 
-function addMessage(role, html) {
+function addMessage(role, content) {
   const container = document.getElementById('chatMessages');
+  // Hide empty state
+  const emptyEl = document.getElementById('chatEmpty');
+  if (emptyEl) emptyEl.style.display = 'none';
   const div = document.createElement('div');
   div.className = `msg ${role}`;
   const now = new Date();
@@ -1320,9 +1385,68 @@ function addMessage(role, html) {
   const avatarHTML = role === 'agent'
     ? `<div class="msg-avatar">${agentAvatarSrc ? `<img src="${agentAvatarSrc}" alt=""/>` : '⚡'}</div>`
     : `<div class="msg-avatar">👤</div>`;
-  div.innerHTML = `${avatarHTML}<div><div class="msg-bubble">${html}</div><div class="msg-time">${time}</div></div>`;
+  div.innerHTML = `${avatarHTML}<div><div class="msg-bubble">${content}</div><div class="msg-time">${time}</div></div>`;
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
+  // Save to localStorage
+  saveChatHistory(role, content, time);
+}
+
+function saveChatHistory(role, content, time) {
+  try {
+    const key = 'thraxei_chat';
+    const existing = JSON.parse(localStorage.getItem(key) || '[]');
+    existing.push({ role, content, time });
+    // Keep max 100 messages
+    if (existing.length > 100) existing.splice(0, existing.length - 100);
+    localStorage.setItem(key, JSON.stringify(existing));
+  } catch(e) {}
+}
+
+function loadChatHistory() {
+  try {
+    const key = 'thraxei_chat';
+    const saved = JSON.parse(localStorage.getItem(key) || '[]');
+    if (!saved.length) return;
+    const container = document.getElementById('chatMessages');
+    const emptyEl = document.getElementById('chatEmpty');
+    if (emptyEl) emptyEl.style.display = 'none';
+    saved.forEach(msg => {
+      const div = document.createElement('div');
+      div.className = `msg ${msg.role}`;
+      const avatarHTML = msg.role === 'agent'
+        ? `<div class="msg-avatar"><img src="${agentAvatarSrc}" alt=""/></div>`
+        : `<div class="msg-avatar">👤</div>`;
+      div.innerHTML = `${avatarHTML}<div><div class="msg-bubble">${msg.content}</div><div class="msg-time">${msg.time}</div></div>`;
+      container.appendChild(div);
+    });
+    container.scrollTop = container.scrollHeight;
+    // Also restore to conversationHistory for AI context
+    conversationHistory = saved
+      .filter(m => m.role === 'user' || m.role === 'agent')
+      .slice(-10)
+      .map(m => ({ role: m.role === 'agent' ? 'assistant' : 'user', content: m.content.replace(/<[^>]+>/g,'') }));
+  } catch(e) {}
+}
+
+function askClearChat() {
+  document.getElementById('clearConfirmBar').classList.add('show');
+}
+function cancelClearChat() {
+  document.getElementById('clearConfirmBar').classList.remove('show');
+}
+function confirmClearChat() {
+  // Clear localStorage
+  localStorage.removeItem('thraxei_chat');
+  conversationHistory = [];
+  // Clear DOM messages
+  const container = document.getElementById('chatMessages');
+  // Remove all msg divs
+  container.querySelectorAll('.msg').forEach(el => el.remove());
+  // Show empty state again
+  const emptyEl = document.getElementById('chatEmpty');
+  if (emptyEl) emptyEl.style.display = 'flex';
+  document.getElementById('clearConfirmBar').classList.remove('show');
 }
 
 function addTyping() {
@@ -1516,18 +1640,16 @@ window.addEventListener('load', function() {
   // Always force correct THRAXEI image
   localStorage.removeItem('thraxei_avatar');
   setAvatarUI(agentAvatarSrc);
-  // Restore session — re-read from localStorage to be 100% sure
+  // Restore session
   try {
     const saved = localStorage.getItem('thraxei_session');
     if (saved && saved !== 'null') {
       currentUser = JSON.parse(saved);
-      if (currentUser && currentUser.name) {
-        setLoggedInUI(currentUser);
-      }
+      if (currentUser && currentUser.name) setLoggedInUI(currentUser);
     }
-  } catch(e) {
-    currentUser = null;
-  }
+  } catch(e) { currentUser = null; }
+  // Load chat history
+  loadChatHistory();
 });
 
 // ─── THEME ────────────────────────────────────────────────────
@@ -1652,9 +1774,13 @@ function doLogout() {
   localStorage.removeItem('thraxei_session');
   const area = document.getElementById('authArea');
   area.innerHTML = `<button class="btn-signin" onclick="openSignIn()">SIGN IN</button>`;
-  addMessage('agent', 'Logged out. See you around! 👋');
-  // Clear chat history context
+  // Clear chat + conversation context on logout
+  localStorage.removeItem('thraxei_chat');
   conversationHistory = [];
+  const container = document.getElementById('chatMessages');
+  if(container) container.querySelectorAll('.msg').forEach(el=>el.remove());
+  const emptyEl = document.getElementById('chatEmpty');
+  if(emptyEl) emptyEl.style.display = 'flex';
 }
 
 // ─── AVATAR ───────────────────────────────────────────────────
